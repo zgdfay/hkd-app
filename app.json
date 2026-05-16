@@ -1,0 +1,40 @@
+{
+  "expo": {
+    "name": "Helo Kidul Dalem App",
+    "slug": "helo-kidul-dalem-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/logo/logo-kidul-dalem-rounded.png",
+    "scheme": "helo-kidul-dalem-app",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "./assets/logo/logo-kidul-dalem-app.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/logo/logo-kidul-dalem-rounded.png",
+        "backgroundColor": "#ffffff"
+      }
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static",
+      "favicon": "./assets/logo/logo-kidul-dalem-app.png"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-font"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
