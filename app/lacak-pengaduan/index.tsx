@@ -1,11 +1,5 @@
 import { Stack, useRouter } from 'expo-router';
-import {
-  ArrowLeft,
-  Search,
-  MapPin,
-  Calendar,
-  CheckCircle2,
-} from 'lucide-react-native';
+import { ArrowLeft, Search, QrCode, MapPin, Calendar, CheckCircle2, X } from 'lucide-react-native';
 import React, { useState } from 'react';
 import {
   View,
@@ -14,16 +8,30 @@ import {
   TextInput,
   Alert,
   Platform,
+  Modal,
 } from 'react-native';
 import { Text } from '@/components/ui/text';
+import { CameraView, useCameraPermissions } from 'expo-camera';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import * as ImagePicker from 'expo-image-picker';
+import { BrowserMultiFormatReader } from '@zxing/library';
 
 import { searchComplaintByCode } from '@/services/complaints';
 import { Complaint, ComplaintStatus } from '@/types';
 
 const STATUS_STEPS: { id: number; status: ComplaintStatus; label: string; desc: string }[] = [
-  { id: 1, status: 'Pending', label: 'Menunggu', desc: 'Laporan telah diterima dan sedang menunggu diproses.' },
-  { id: 2, status: 'Proses', label: 'Sedang Diproses', desc: 'Laporan sedang dikerjakan oleh tim.' },
+  {
+    id: 1,
+    status: 'Pending',
+    label: 'Menunggu',
+    desc: 'Laporan telah diterima dan sedang menunggu diproses.',
+  },
+  {
+    id: 2,
+    status: 'Proses',
+    label: 'Sedang Diproses',
+    desc: 'Laporan sedang dikerjakan oleh tim.',
+  },
   { id: 3, status: 'Selesai', label: 'Selesai', desc: 'Laporan telah selesai ditangani.' },
 ];
 
@@ -43,6 +51,9 @@ export default function LacakPengaduanPage() {
   const [complaintCode, setComplaintCode] = useState('');
   const [searchResult, setSearchResult] = useState<Complaint | null>(null);
   const [isSearching, setIsSearching] = useState(false);
+  const [isScannerVisible, setIsScannerVisible] = useState(false);
+  const [permission, requestPermission] = useCameraPermissions();
+  const [hasScanned, setHasScanned] = useState(false);
 
   const handleSearch = async () => {
     if (!complaintCode.trim()) {
@@ -67,8 +78,117 @@ export default function LacakPengaduanPage() {
     }
   };
 
+  const onBarCodeScanned = ({ data }: { data: string }) => {
+    if (hasScanned) return;
+
+    // Reject blob URLs and invalid data
+    if (data.startsWith('blob:') || data.startsWith('http') || !data) {
+      setIsScannerVisible(false);
+      Alert.alert('Error', 'QR Code tidak valid. Silakan masukkan kode manually.');
+      setHasScanned(false);
+      return;
+    }
+
+    setHasScanned(true);
+    setIsScannerVisible(false);
+
+    // Validate - QR should contain complaint code
+    const code = data.trim().toUpperCase();
+    if (!code || code.length < 5) {
+      Alert.alert('Error', 'QR Code tidak valid. Silakan coba lagi.');
+      setHasScanned(false);
+      return;
+    }
+
+    setComplaintCode(code);
+    setIsSearching(true);
+    setSearchResult(null);
+
+    searchComplaintByCode(code)
+      .then((result) => {
+        if (result) {
+          setSearchResult(result);
+        } else {
+          Alert.alert('Tidak Ditemukan', 'Kode dari QR tidak terdaftar.');
+          setHasScanned(false);
+        }
+      })
+      .catch(() => {
+        Alert.alert('Error', 'Terjadi kesalahan saat mencari.');
+        setHasScanned(false);
+      })
+      .finally(() => {
+        setIsSearching(false);
+      });
+  };
+
+  const openScanner = async () => {
+    if (!permission?.granted) {
+      const { granted } = await requestPermission();
+      if (!granted) {
+        Alert.alert('Izin Ditolak', 'Izin kamera diperlukan untuk scan QR Code.');
+        return;
+      }
+    }
+    setHasScanned(false);
+    setIsScannerVisible(true);
+  };
+
+  const pickQRImage = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: 'images',
+      allowsEditing: true,
+      quality: 1,
+    });
+
+    if (!result.canceled && result.assets[0]) {
+      setIsScannerVisible(false);
+
+      try {
+        const reader = new BrowserMultiFormatReader();
+        const imageUri = result.assets[0].uri;
+
+        // Load image and decode QR
+        const img = new window.Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = async () => {
+          try {
+            const result2 = await reader.decodeFromImageElement(img);
+            const scannedCode = result2.getText();
+
+            // Validate - reject blob URLs
+            if (!scannedCode || scannedCode.length < 3) {
+              Alert.alert('Error', 'QR Code tidak valid atau kosong.');
+              return;
+            }
+
+            if (scannedCode.startsWith('blob:') || scannedCode.startsWith('http')) {
+              Alert.alert('Error', 'QR Code tidak valid.');
+              return;
+            }
+
+            setComplaintCode(scannedCode.toUpperCase());
+            Alert.alert('Sukses', `Kode "${scannedCode}" terdeteksi. Tekan Lacak Sekarang.`);
+          } catch {
+            Alert.alert(
+              'Error',
+              'Tidak dapat membaca QR Code dari gambar. Pastikan gambar mengandung QR Code.'
+            );
+          }
+        };
+        img.onerror = () => {
+          Alert.alert('Error', 'Gagal memuat gambar.');
+        };
+        img.src = imageUri;
+      } catch (error) {
+        console.error('QR decode error:', error);
+        Alert.alert('Error', 'Tidak dapat membaca QR Code.');
+      }
+    }
+  };
+
   const getStatusIndex = (status: string): number => {
-    const index = STATUS_STEPS.findIndex(step => step.status === status);
+    const index = STATUS_STEPS.findIndex((step) => step.status === status);
     return index === -1 ? 0 : index;
   };
 
@@ -85,16 +205,17 @@ export default function LacakPengaduanPage() {
       <Stack.Screen options={{ headerShown: false }} />
 
       {/* Header */}
-      <View style={{
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingHorizontal: 24,
-        paddingBottom: 16,
-        paddingTop: Platform.OS === 'android' ? 16 : 8,
-        backgroundColor: '#fff',
-        borderBottomWidth: 1,
-        borderBottomColor: '#f3f4f6',
-      }}>
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          paddingHorizontal: 24,
+          paddingBottom: 16,
+          paddingTop: Platform.OS === 'android' ? 16 : 8,
+          backgroundColor: '#fff',
+          borderBottomWidth: 1,
+          borderBottomColor: '#f3f4f6',
+        }}>
         <TouchableOpacity
           onPress={handleBack}
           className="h-10 w-10 items-center justify-center rounded-full bg-gray-50">
@@ -107,7 +228,6 @@ export default function LacakPengaduanPage() {
         className="flex-1"
         contentContainerStyle={{ padding: 24 }}
         keyboardShouldPersistTaps="handled">
-
         {/* Search Box */}
         <View className="mb-8">
           <Text className="font-psemibold mb-3 text-sm text-gray-700">Cek Status Laporan</Text>
@@ -123,6 +243,11 @@ export default function LacakPengaduanPage() {
                 autoCapitalize="characters"
               />
             </View>
+            {/* <TouchableOpacity
+              onPress={openScanner}
+              className="h-14 w-14 items-center justify-center rounded-2xl bg-green-50">
+              <QrCode size={24} color="#16A34A" />
+            </TouchableOpacity> */}
           </View>
           <TouchableOpacity
             onPress={handleSearch}
@@ -137,11 +262,13 @@ export default function LacakPengaduanPage() {
         {searchResult ? (
           <View>
             {/* Result Info */}
-            <View className="mb-6 rounded-3xl bg-gray-50 p-6 border border-gray-100">
+            <View className="mb-6 rounded-3xl border border-gray-100 bg-gray-50 p-6">
               <View className="mb-4 flex-row items-center justify-between">
                 <Text className="font-pbold text-green-700">{searchResult.code}</Text>
                 <View className="rounded-full bg-green-100 px-3 py-1">
-                  <Text className="font-psemibold text-[10px] text-green-700 uppercase">{searchResult.status}</Text>
+                  <Text className="font-psemibold text-[10px] uppercase text-green-700">
+                    {searchResult.status}
+                  </Text>
                 </View>
               </View>
               <Text className="font-pbold mb-4 text-xl text-gray-900">{searchResult.title}</Text>
@@ -149,12 +276,18 @@ export default function LacakPengaduanPage() {
               <View className="gap-3">
                 <View className="flex-row items-center gap-2">
                   <MapPin size={16} color="#6B7280" />
-                  <Text className="font-pmedium text-sm text-gray-600">{searchResult.location}</Text>
+                  <Text className="font-pmedium text-sm text-gray-600">
+                    {searchResult.location}
+                  </Text>
                 </View>
                 <View className="flex-row items-center gap-2">
                   <Calendar size={16} color="#6B7280" />
                   <Text className="font-pmedium text-sm text-gray-600">
-                    {new Date(searchResult.createdAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
+                    {new Date(searchResult.createdAt).toLocaleDateString('id-ID', {
+                      day: 'numeric',
+                      month: 'long',
+                      year: 'numeric',
+                    })}
                   </Text>
                 </View>
               </View>
@@ -193,8 +326,9 @@ export default function LacakPengaduanPage() {
                 return (
                   <View key={step.id} className="flex-row">
                     {/* Progress Line & Dot */}
-                    <View className="items-center mr-4">
-                      <View className={`h-6 w-6 items-center justify-center rounded-full ${circleColor}`}>
+                    <View className="mr-4 items-center">
+                      <View
+                        className={`h-6 w-6 items-center justify-center rounded-full ${circleColor}`}>
                         {showCheckmark ? (
                           <CheckCircle2 size={14} color="white" />
                         ) : isCurrent ? (
@@ -204,16 +338,18 @@ export default function LacakPengaduanPage() {
                         )}
                       </View>
                       {index < STATUS_STEPS.length - 1 && (
-                        <View className={`w-[2px] flex-1 ${lineColor}`} style={{ marginVertical: 4 }} />
+                        <View
+                          className={`w-[2px] flex-1 ${lineColor}`}
+                          style={{ marginVertical: 4 }}
+                        />
                       )}
                     </View>
 
                     {/* Step Content */}
                     <View className="mb-8 flex-1">
-                      <Text className={`font-pbold text-sm ${textColor}`}>
-                        {step.label}
-                      </Text>
-                      <Text className={`font-pmedium mt-1 text-xs leading-5 ${isCompleted || isCurrent ? 'text-gray-600' : 'text-gray-400'}`}>
+                      <Text className={`font-pbold text-sm ${textColor}`}>{step.label}</Text>
+                      <Text
+                        className={`font-pmedium mt-1 text-xs leading-5 ${isCompleted || isCurrent ? 'text-gray-600' : 'text-gray-400'}`}>
                         {step.desc}
                       </Text>
                     </View>
@@ -230,11 +366,15 @@ export default function LacakPengaduanPage() {
                   {searchResult.history.map((log, idx) => {
                     const style = getLogStyle(log.label);
                     return (
-                      <View key={idx} className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+                      <View
+                        key={idx}
+                        className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
                         <View className="mb-2 flex-row items-center justify-between">
                           <View className="flex-row items-center gap-2">
                             <View className={`h-2.5 w-2.5 rounded-full ${style.dot}`} />
-                            <Text className={`font-psemibold text-xs ${style.text}`}>{log.label}</Text>
+                            <Text className={`font-psemibold text-xs ${style.text}`}>
+                              {log.label}
+                            </Text>
                           </View>
                           <Text className="font-pmedium text-[10px] text-gray-400">{log.date}</Text>
                         </View>
@@ -248,14 +388,61 @@ export default function LacakPengaduanPage() {
               </View>
             )}
           </View>
-        ) : !isSearching && (
-          <View className="items-center justify-center py-10">
-            <Search size={48} color="#E5E7EB" />
-            <Text className="font-pbold mt-4 text-center text-gray-300">Belum ada data untuk dilacak</Text>
-            <Text className="font-pmedium mt-2 text-center text-xs text-gray-400">Masukkan kode untuk melihat status.</Text>
-          </View>
+        ) : (
+          !isSearching && (
+            <View className="items-center justify-center py-10">
+              <Search size={48} color="#E5E7EB" />
+              <Text className="font-pbold mt-4 text-center text-gray-300">
+                Belum ada data untuk dilacak
+              </Text>
+              <Text className="font-pmedium mt-2 text-center text-xs text-gray-400">
+                Masukkan kode atau scan QR untuk melihat status.
+              </Text>
+            </View>
+          )
         )}
       </ScrollView>
+
+      {/* Scanner Modal */}
+      <Modal visible={isScannerVisible} animationType="slide">
+        <SafeAreaView style={{ flex: 1, backgroundColor: '#000' }}>
+          <View className="flex-1">
+            <CameraView
+              style={{ flex: 1 }}
+              onBarcodeScanned={hasScanned ? undefined : onBarCodeScanned}
+              barcodeScannerSettings={{
+                barcodeTypes: ['qr'],
+              }}>
+              <View className="flex-1 items-center justify-between p-6">
+                {/* Close Button - Left Side */}
+                <View className="w-full flex-row justify-between">
+                  <TouchableOpacity
+                    onPress={() => {
+                      setHasScanned(false);
+                      setIsScannerVisible(false);
+                    }}
+                    className="h-12 w-12 items-center justify-center rounded-full bg-white/20">
+                    <X size={24} color="white" />
+                  </TouchableOpacity>
+                </View>
+
+                {/* Scanner Overlay */}
+                <View className="h-64 w-64 rounded-3xl border-2 border-white/50 bg-transparent" />
+                <Text className="font-pbold mt-8 text-center text-white">
+                  Arahkan kamera ke QR Code
+                </Text>
+
+                {/* Gallery Button */}
+                <TouchableOpacity
+                  onPress={pickQRImage}
+                  className="mb-8 h-14 w-full items-center justify-center rounded-2xl bg-white/20">
+                  <Text className="font-pbold text-white">Pilih dari Galeri</Text>
+                </TouchableOpacity>
+              </View>
+            </CameraView>
+          </View>
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 }

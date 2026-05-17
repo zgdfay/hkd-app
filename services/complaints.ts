@@ -48,6 +48,7 @@ export async function createComplaint(
       reporter_phone: payload.reporterPhone,
       reporter_id: reporterId || null,
       status: 'Pending',
+      images: payload.images || [],
     })
     .select()
     .single();

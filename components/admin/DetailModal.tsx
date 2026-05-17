@@ -15,11 +15,7 @@ export const DetailModal = ({ visible, onClose, complaint }: DetailModalProps) =
   if (!complaint) return null;
 
   return (
-    <Modal
-      visible={visible}
-      transparent={true}
-      animationType="slide"
-      onRequestClose={onClose}>
+    <Modal visible={visible} transparent={true} animationType="slide" onRequestClose={onClose}>
       <View className="flex-1 justify-end bg-black/50">
         <View className="h-[90%] rounded-t-[32px] bg-white p-6">
           <View className="mb-4 flex-row items-center justify-between">
@@ -44,9 +40,7 @@ export const DetailModal = ({ visible, onClose, complaint }: DetailModalProps) =
             </Text>
 
             <View className="mb-5">
-              <Text className="font-psemibold mb-2.5 text-[15px] text-[#1A1A1A]">
-                Data Pelapor
-              </Text>
+              <Text className="font-psemibold mb-2.5 text-[15px] text-[#1A1A1A]">Data Pelapor</Text>
               <View className="rounded-2xl border border-gray-100 bg-gray-50 p-4">
                 <View className="mb-2 flex-row justify-between">
                   <Text className="font-pregular text-[14px] text-gray-500">Nama:</Text>
@@ -55,9 +49,7 @@ export const DetailModal = ({ visible, onClose, complaint }: DetailModalProps) =
                   </Text>
                 </View>
                 <View className="flex-row justify-between">
-                  <Text className="font-pregular text-[14px] text-gray-500">
-                    Tanggal Lapor:
-                  </Text>
+                  <Text className="font-pregular text-[14px] text-gray-500">Tanggal Lapor:</Text>
                   <Text className="font-psemibold text-[14px] text-[#1A1A1A]">
                     {complaint.date}
                   </Text>
@@ -70,7 +62,6 @@ export const DetailModal = ({ visible, onClose, complaint }: DetailModalProps) =
                 Lokasi Kejadian
               </Text>
               <View className="flex-row items-center gap-3 rounded-2xl border border-gray-100 bg-gray-50 p-4">
-                <MapPin size={20} color="#16A34A" />
                 <Text className="font-pmedium flex-1 text-[14px] text-[#1A1A1A]">
                   {complaint.location || 'Tidak ada lokasi'}
                 </Text>

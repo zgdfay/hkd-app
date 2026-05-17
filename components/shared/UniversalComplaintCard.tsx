@@ -43,10 +43,15 @@ export const UniversalComplaintCard = ({
   const isAdminThirdEnabled = canAdminUpdate || canAdminSelesai;
 
   // Card opacity:
-  // - Admin: muted only when status='Selesai' AND lurahStatus='done' (fully complete)
-  // - Lurah: muted when lurahStatus='done'
+  // Do not mute the overall card so "Tinjau" / "Periksa" buttons remain visually active
   const isFullyComplete = item.isForwarded && lurahStatus === 'done' && item.status === 'Selesai';
-  const cardOpacity = role === 'admin' ? (isFullyComplete ? 'opacity-50' : '') : (isDoneByLurah ? 'opacity-50' : '');
+  const cardOpacity = '';
+
+  let displayStatus = item.status;
+  if (role === 'lurah') {
+    if (lurahStatus === 'done') displayStatus = 'Selesai';
+    else if (lurahStatus === 'processing') displayStatus = 'Proses';
+  }
 
   return (
     <View className={`mb-4 rounded-xl border border-gray-100 bg-white p-4 shadow-sm ${cardOpacity}`}>
@@ -55,7 +60,7 @@ export const UniversalComplaintCard = ({
           <Text className="text-sm font-pmedium uppercase text-gray-400">{item.category}</Text>
           <Text className="text-md font-psemibold text-gray-900">{item.title}</Text>
         </View>
-        <StatusBadge status={item.status} className="mt-1" />
+        <StatusBadge status={displayStatus} className="mt-1" />
       </View>
 
       <View className="mb-4">

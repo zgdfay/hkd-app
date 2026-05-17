@@ -137,6 +137,7 @@ export default function PengaduanPage() {
         location: location.trim(),
         reporterName: reporterName.trim(),
         reporterPhone: reporterPhone.trim(),
+        images: images,
       });
 
       router.replace({

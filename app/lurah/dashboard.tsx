@@ -1,5 +1,5 @@
 import { Stack, useRouter } from 'expo-router';
-import { LogOut, Search, User, ShieldCheck } from 'lucide-react-native';
+import { LogOut, Search, User, ShieldCheck, Eye, EyeOff } from 'lucide-react-native';
 import React, { useState, useMemo, useCallback } from 'react';
 import {
   View,
@@ -9,6 +9,7 @@ import {
   TextInput,
   Alert,
   Platform,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { Text } from '@/components/ui/text';
 
@@ -36,6 +37,7 @@ export default function LurahDashboard() {
 
   const [lurahName, setLurahName] = useState('Bpk. Lurah Kidul Dalem');
   const [newPassword, setNewPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   const fetchComplaints = useCallback(async () => {
     setIsLoading(true);
@@ -126,20 +128,38 @@ export default function LurahDashboard() {
   };
 
   const handleSaveProfile = async () => {
-    // Profile update not implemented via Supabase yet
-    Alert.alert('Info', 'Fitur update profil belum tersedia.');
-    setNewPassword('');
+    if (!newPassword.trim()) {
+      Alert.alert('Peringatan', 'Mohon masukkan kata sandi baru.');
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      Alert.alert('Peringatan', 'Kata sandi minimal 6 karakter.');
+      return;
+    }
+
+    try {
+      const { updatePassword } = await import('@/services/auth');
+      await updatePassword(newPassword);
+      Alert.alert('Sukses', 'Kata sandi berhasil diperbarui.');
+      setNewPassword('');
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'Gagal memperbarui kata sandi.');
+    }
   };
 
   return (
     <SafeAreaView style={{ flex: 1 }} className="bg-primary">
       <Stack.Screen options={{ headerShown: false }} />
 
-      <View className="flex-1 bg-white">
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          style={{ flex: 1 }}
-          contentContainerStyle={{ flexGrow: 1, paddingBottom: 100 }}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={{ flex: 1 }}>
+        <View className="flex-1 bg-white">
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            style={{ flex: 1 }}
+            contentContainerStyle={{ flexGrow: 1, paddingBottom: 100 }}
           keyboardShouldPersistTaps="handled">
           <LurahHeader activeTab={activeTab} />
 
@@ -220,10 +240,17 @@ export default function LurahDashboard() {
                     <TextInput
                       className="font-pmedium ml-3 flex-1 text-sm text-gray-900"
                       placeholder="Masukkan sandi baru"
-                      secureTextEntry
+                      secureTextEntry={!showPassword}
                       value={newPassword}
                       onChangeText={setNewPassword}
                     />
+                    <TouchableOpacity onPress={() => setShowPassword(!showPassword)} className="p-1">
+                      {showPassword ? (
+                        <EyeOff size={18} color="#9CA3AF" />
+                      ) : (
+                        <Eye size={18} color="#9CA3AF" />
+                      )}
+                    </TouchableOpacity>
                   </View>
                 </View>
 
@@ -247,7 +274,8 @@ export default function LurahDashboard() {
         </ScrollView>
 
         <LurahTabNav activeTab={activeTab} onTabChange={setActiveTab} />
-      </View>
+        </View>
+      </KeyboardAvoidingView>
 
       <DetailModal
         visible={isDetailVisible}

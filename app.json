@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Helo Kidul Dalem App",
+    "name": "Halo Kidul Dalem App",
     "slug": "helo-kidul-dalem-app",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -22,7 +22,8 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/logo/logo-kidul-dalem-rounded.png",
         "backgroundColor": "#ffffff"
-      }
+      },
+      "package": "com.faayy.helokiduldalemapp"
     },
     "web": {
       "bundler": "metro",
@@ -35,6 +36,12 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "df12cb11-c89c-44c9-8c41-55bed9ea44d2"
+      }
     }
   }
 }

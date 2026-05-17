@@ -159,38 +159,38 @@ export default function SuccessPage() {
             shadowRadius: 15,
             elevation: 2,
           }}>
-          {/* Plain Code Box */}
+          {/* QR Code */}
           <View
             style={{
               backgroundColor: '#fff',
-              padding: 24,
-              borderRadius: 16,
+              padding: 16,
+              borderRadius: 20,
               marginBottom: 20,
-              borderWidth: 2,
-              borderColor: '#16A34A',
               shadowColor: '#000',
               shadowOffset: { width: 0, height: 4 },
               shadowOpacity: 0.1,
               shadowRadius: 10,
-              minWidth: 220,
-              alignItems: 'center',
             }}>
-            <Text className="font-psemibold mb-2 text-xs text-gray-400">KODE PENGADUAN</Text>
-            <Text className="font-pbold text-2xl tracking-widest text-green-700">{complaintCode}</Text>
+            <QRCode
+              getRef={(c) => (qrRef.current = c)}
+              value={complaintCode as string}
+              size={180}
+              color="#1A1A1A"
+              backgroundColor="white"
+            />
           </View>
 
-          <TouchableOpacity onPress={handleCopy} className="flex-row items-center gap-2 mb-4">
-            <View className="rounded-full bg-green-50 p-2">
+          <Text className="font-psemibold mb-1 text-xs text-gray-400">KODE PENGADUAN</Text>
+          <View className="flex-row items-center gap-2 mb-4">
+            <Text className="font-pbold text-md tracking-wide text-green-700">{complaintCode}</Text>
+            <TouchableOpacity onPress={handleCopy} className="rounded-full bg-green-50 p-1.5">
               {isCopied ? (
-                <Check size={16} color="#16A34A" />
+                <Check size={12} color="#16A34A" />
               ) : (
-                <Copy size={16} color="#16A34A" />
+                <Copy size={12} color="#16A34A" />
               )}
-            </View>
-            <Text className="font-pmedium text-xs text-gray-500">
-              {isCopied ? 'Tersalin!' : 'Salin kode'}
-            </Text>
-          </TouchableOpacity>
+            </TouchableOpacity>
+          </View>
 
           <View className="h-[1px] w-full border-t border-dashed border-gray-200" />
 
@@ -202,17 +202,26 @@ export default function SuccessPage() {
           </View>
 
           {/* Hidden QR for capture - not visible but can be captured */}
-          <ViewShot ref={viewShotRef} options={{ format: 'png', quality: 1 }} style={{ position: 'absolute', opacity: 0 }}>
-            <View style={{ padding: 20, backgroundColor: '#fff', borderRadius: 16 }}>
-              <QRCode
-                getRef={(c) => (qrRef.current = c)}
-                value={complaintCode as string}
-                size={200}
-                color="#1A1A1A"
-                backgroundColor="white"
-              />
-            </View>
-          </ViewShot>
+          <View style={{ position: 'absolute', left: -9999, top: -9999 }}>
+            <ViewShot ref={viewShotRef} options={{ format: 'png', quality: 1 }}>
+              <View style={{ padding: 32, backgroundColor: '#ffffff', alignItems: 'center', width: 300 }}>
+                <View style={{ marginBottom: 20, backgroundColor: '#fff', padding: 16, borderRadius: 20, elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4 }}>
+                  <QRCode
+                    value={complaintCode as string}
+                    size={200}
+                    color="#1A1A1A"
+                    backgroundColor="white"
+                  />
+                </View>
+                <Text className="font-psemibold text-[14px] text-gray-400 mb-2">
+                  KODE PENGADUAN
+                </Text>
+                <Text className="font-pbold text-[22px] text-green-700">
+                  {complaintCode}
+                </Text>
+              </View>
+            </ViewShot>
+          </View>
         </View>
 
         {/* Actions */}
