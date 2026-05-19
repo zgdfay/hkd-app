@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Stack, useRouter } from 'expo-router';
 import { LogOut, Search, User, ShieldCheck, Eye, EyeOff } from 'lucide-react-native';
 import React, { useState, useMemo, useCallback } from 'react';
@@ -98,6 +99,7 @@ export default function LurahDashboard() {
   const handleLogout = () => {
     const logoutAction = async () => {
       await signOut();
+      await AsyncStorage.removeItem('user');
       router.replace('/login');
     };
     if (Platform.OS === 'web') {

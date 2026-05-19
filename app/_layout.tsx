@@ -10,10 +10,12 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useColorScheme } from 'nativewind';
 import { useEffect } from 'react';
+import { AppState, Platform } from 'react-native';
 import {
   registerForPushNotificationsAsync,
   addNotificationReceivedListener,
   addNotificationResponseReceivedListener,
+  clearBadgeCount,
 } from '@/services/push-notifications';
 
 export {
@@ -45,8 +47,11 @@ export default function RootLayout() {
     }
   }, [loaded, error]);
 
-  // Register push notifications globally (for all users including warga tanpa login)
+  // Register push notifications globally and manage badge count
   useEffect(() => {
+    // Clear badge count immediately on startup
+    clearBadgeCount();
+
     registerForPushNotificationsAsync().catch((e) =>
       console.log('Push notification registration error:', e)
     );
@@ -54,11 +59,15 @@ export default function RootLayout() {
     // Listen for incoming notifications while app is in foreground
     const receivedSub = addNotificationReceivedListener((notification) => {
       console.log('Notification received:', notification.request.content.title);
+      // Optional: you can choose not to clear badge if you want to keep it while in foreground,
+      // but usually when the app is active/foregrounded, we want the badge to stay 0.
+      clearBadgeCount();
     });
 
     // Handle notification tap (app opened from notification)
     const responseSub = addNotificationResponseReceivedListener((response) => {
       const data = response.notification.request.content.data;
+      clearBadgeCount(); // Clear badge when tapping notification
       if (data?.type === 'new_complaint' || data?.type === 'lurah_processing' || data?.type === 'lurah_done') {
         router.push('/admin/dashboard' as any);
       } else if (data?.type === 'new_task') {
@@ -68,9 +77,18 @@ export default function RootLayout() {
       }
     });
 
+    // Handle AppState changes (clear badge count when app returns to foreground)
+    const appStateSub = AppState.addEventListener('change', (nextAppState) => {
+      if (nextAppState === 'active') {
+        console.log('[PUSH] App came to foreground, clearing badge');
+        clearBadgeCount();
+      }
+    });
+
     return () => {
       receivedSub.remove();
       responseSub.remove();
+      appStateSub.remove();
     };
   }, []);
 

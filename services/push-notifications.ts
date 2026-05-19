@@ -53,13 +53,11 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
   try {
     const hasPermission = await requestNotificationPermissions();
     if (!hasPermission) {
-      console.log('Notification permission not granted');
       return null;
     }
 
     const projectId = Constants.expoConfig?.extra?.eas?.projectId;
     if (!projectId) {
-      console.log('No projectId found in Expo config');
       return null;
     }
 
@@ -81,7 +79,7 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
         });
       }
     } catch (e) {
-      console.log('Could not save push token to server (user not logged in):', e);
+      // silent fail
     }
 
     return token;
@@ -167,5 +165,20 @@ export async function scheduleLocalNotification(
   } catch (error) {
     console.error('Error scheduling local notification:', error);
     return null;
+  }
+}
+
+/**
+ * Resets the application icon badge count to 0.
+ * This clears the home screen notification dot/badge.
+ */
+export async function clearBadgeCount(): Promise<void> {
+  try {
+    if (Platform.OS !== 'web') {
+      await Notifications.setBadgeCountAsync(0);
+      console.log('[PUSH] ✅ Badge count cleared successfully');
+    }
+  } catch (error) {
+    console.log('[PUSH] ⚠️ Failed to clear badge count:', error);
   }
 }

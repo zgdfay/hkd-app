@@ -4,6 +4,7 @@ import { LogIn, MessageSquarePlus, Search } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
 import { Image, SafeAreaView, TouchableOpacity, View } from 'react-native';
 import { Text } from '@/components/ui/text';
+import { getCurrentSession } from '@/services/auth';
 
 const LOGO_SOURCE = require('../assets/logo/logo-kidul-dalem-app.png');
 
@@ -16,6 +17,30 @@ export default function Home() {
       if ((await AsyncStorage.getItem('hasSeenOnboarding')) !== 'true') {
         router.replace('/welcome');
       } else {
+        // Auto-login session restoration — only if Supabase session is still valid
+        try {
+          const cachedUser = await AsyncStorage.getItem('user');
+          if (cachedUser) {
+            const session = await getCurrentSession();
+            
+            if (session) {
+              // Session is valid — auto-redirect to dashboard
+              const user = JSON.parse(cachedUser);
+              if (user?.role === 'admin') {
+                router.replace('/admin/dashboard');
+                return;
+              } else if (user?.role === 'lurah') {
+                router.replace('/lurah/dashboard');
+                return;
+              }
+            } else {
+              // Session expired — clear stale cache
+              await AsyncStorage.removeItem('user');
+            }
+          }
+        } catch (error) {
+          await AsyncStorage.removeItem('user');
+        }
         setIsReady(true);
       }
     })();

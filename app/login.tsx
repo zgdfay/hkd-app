@@ -18,6 +18,7 @@ import LoadingScreen from '@/components/shared/LoadingScreen';
 
 import { signInWithEmail } from '@/services/auth';
 import { registerForPushNotificationsAsync } from '@/services/push-notifications';
+import { savePushToken } from '@/services/notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const LOGO_SOURCE = require('../assets/logo/logo-kidul-dalem-app.png');
@@ -43,11 +44,17 @@ export default function Login() {
       // Store user data for session persistence
       await AsyncStorage.setItem('user', JSON.stringify(user));
 
-      // Register for push notifications
+      // Register for push notifications and save token for this user
       try {
-        await registerForPushNotificationsAsync();
+        const pushToken = await registerForPushNotificationsAsync();
+        // Also explicitly save with the user we just logged in as (belt-and-suspenders)
+        if (pushToken && user.id) {
+          await savePushToken(user.id, pushToken, {
+            platform: Platform.OS,
+          });
+        }
       } catch (pushError) {
-        console.log('Push notification registration failed:', pushError);
+        // silent fail
       }
 
       if (user.role === 'admin') {

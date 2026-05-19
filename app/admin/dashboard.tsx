@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Stack, useRouter } from 'expo-router';
 import {
   LogOut,
@@ -142,6 +143,7 @@ export default function AdminDashboard() {
   const handleLogout = () => {
     const logoutAction = async () => {
       await signOut();
+      await AsyncStorage.removeItem('user');
       router.replace('/login');
     };
     if (Platform.OS === 'web') {
