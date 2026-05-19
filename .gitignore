@@ -18,6 +18,12 @@ web-build/
 .env.production.local
 .env*.local
 
+# Firebase / Google Services
+google-services.json
+android/app/google-services.json
+GoogleService-Info.plist
+**/GoogleService-Info.plist
+
 # Native build artifacts and keys
 *.orig.*
 *.jks

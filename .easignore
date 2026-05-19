@@ -20,6 +20,12 @@ web-build/
 .env.production.local
 .env*.local
 
+# Firebase / Google Services
+google-services.json
+android/app/google-services.json
+GoogleService-Info.plist
+**/GoogleService-Info.plist
+
 # Keystores & Certificates (should be handled via EAS Secrets)
 *.jks
 *.keystore
