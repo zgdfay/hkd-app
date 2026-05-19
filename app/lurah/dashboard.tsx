@@ -21,6 +21,8 @@ import { FilterSection } from '@/components/admin/FilterSection';
 import { DetailModal } from '@/components/admin/DetailModal';
 import { getComplaintsForLurah, setLurahStatusProcessing, setLurahStatusDone } from '@/services/complaints';
 import { ComplaintListItem } from '@/types';
+import { supabase } from '@/utils/supabase';
+import { signOut, updatePassword } from '@/services/auth';
 
 export default function LurahDashboard() {
   const router = useRouter();
@@ -60,6 +62,26 @@ export default function LurahDashboard() {
     }
   }, [activeTab, fetchComplaints]);
 
+  // Realtime subscription - auto refresh when complaints change
+  React.useEffect(() => {
+    const channel = supabase
+      .channel(`lurah-complaints-realtime-${Math.random().toString(36).substring(7)}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'complaints' },
+        () => {
+          if (activeTab === 'tugas') {
+            fetchComplaints();
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [activeTab, fetchComplaints]);
+
   const filteredData = useMemo(() => {
     let data = [...complaints];
     if (filterStatus !== 'Semua') data = data.filter((item) => item.status === filterStatus);
@@ -75,7 +97,6 @@ export default function LurahDashboard() {
 
   const handleLogout = () => {
     const logoutAction = async () => {
-      const { signOut } = await import('@/services/auth');
       await signOut();
       router.replace('/login');
     };
@@ -92,18 +113,15 @@ export default function LurahDashboard() {
   const handleReview = (item: ComplaintListItem) => {
     setSelectedComplaint({
       id: item.id,
-      code: item.id,
       title: item.title,
       description: item.description || '',
       category: item.category as any,
       location: item.location || '',
-      reporterName: item.citizen,
-      reporterPhone: '',
+      citizen: item.citizen,
+      date: item.date,
       status: item.status,
       images: item.images || [],
-      createdAt: item.date,
-      updatedAt: item.date,
-    });
+    } as ComplaintListItem);
     setIsDetailVisible(true);
   };
 
@@ -139,7 +157,6 @@ export default function LurahDashboard() {
     }
 
     try {
-      const { updatePassword } = await import('@/services/auth');
       await updatePassword(newPassword);
       Alert.alert('Sukses', 'Kata sandi berhasil diperbarui.');
       setNewPassword('');
@@ -168,9 +185,9 @@ export default function LurahDashboard() {
               <>
                 <StatsCards
                   total={complaints.length}
-                  pending={0}
-                  proses={complaints.filter(c => c.status === 'Proses').length}
-                  selesai={complaints.filter(c => c.status === 'Selesai').length}
+                  pending={complaints.filter(c => c.lurahStatus === 'pending' || !c.lurahStatus).length}
+                  proses={complaints.filter(c => c.lurahStatus === 'processing').length}
+                  selesai={complaints.filter(c => c.lurahStatus === 'done').length}
                 />
 
                 <FilterSection

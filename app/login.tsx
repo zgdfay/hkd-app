@@ -11,11 +11,13 @@ import {
   ScrollView,
   Image,
   Alert,
+  StatusBar,
 } from 'react-native';
 import { Text } from '@/components/ui/text';
 import LoadingScreen from '@/components/shared/LoadingScreen';
 
 import { signInWithEmail } from '@/services/auth';
+import { registerForPushNotificationsAsync } from '@/services/push-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const LOGO_SOURCE = require('../assets/logo/logo-kidul-dalem-app.png');
@@ -41,6 +43,13 @@ export default function Login() {
       // Store user data for session persistence
       await AsyncStorage.setItem('user', JSON.stringify(user));
 
+      // Register for push notifications
+      try {
+        await registerForPushNotificationsAsync();
+      } catch (pushError) {
+        console.log('Push notification registration failed:', pushError);
+      }
+
       if (user.role === 'admin') {
         router.replace('/admin/dashboard');
       } else if (user.role === 'lurah') {
@@ -61,13 +70,16 @@ export default function Login() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
+    <SafeAreaView 
+      style={{ flex: 1, backgroundColor: '#fff', paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 8 : 0 }}
+    >
       <Stack.Screen options={{ headerShown: false }} />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         className="flex-1">
         <ScrollView
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
           contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 24, paddingBottom: 40 }}>
           {/* Back Button */}
           <TouchableOpacity

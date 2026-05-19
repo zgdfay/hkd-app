@@ -25,6 +25,8 @@ import {
   Image,
   Platform,
   Modal,
+  StatusBar,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { Text } from '@/components/ui/text';
 import LoadingScreen from '@/components/shared/LoadingScreen';
@@ -33,6 +35,7 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 
 import { createComplaint } from '@/services/complaints';
 import { ComplaintCategory } from '@/types';
+import { getLocalPushToken, saveLocalComplaintCode } from '@/services/push-notifications';
 
 const CATEGORIES: { id: ComplaintCategory; label: string; icon: typeof HardHat; color: string }[] = [
   { id: 'infrastruktur', label: 'Infrastruktur', icon: HardHat, color: '#0EA5E9' },
@@ -130,6 +133,9 @@ export default function PengaduanPage() {
     setIsLoading(true);
 
     try {
+      // Get local push token for anonymous warga notifications
+      const pushToken = await getLocalPushToken();
+
       const complaint = await createComplaint({
         title: title.trim(),
         description: description.trim(),
@@ -138,7 +144,13 @@ export default function PengaduanPage() {
         reporterName: reporterName.trim(),
         reporterPhone: reporterPhone.trim(),
         images: images,
+        reporterPushToken: pushToken || undefined,
       });
+
+      // Save complaint code locally for tracking
+      if (complaint.code) {
+        await saveLocalComplaintCode(complaint.code);
+      }
 
       router.replace({
         pathname: '/pengaduan/success',
@@ -174,7 +186,7 @@ export default function PengaduanPage() {
           justifyContent: 'space-between',
           paddingHorizontal: 24,
           paddingBottom: 16,
-          paddingTop: Platform.OS === 'android' ? 16 : 8,
+          paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 12 : 8,
           backgroundColor: '#fff',
           borderBottomWidth: 1,
           borderBottomColor: '#f3f4f6',
@@ -189,7 +201,9 @@ export default function PengaduanPage() {
         <View style={{ width: 40 }} />
       </View>
 
-      <View style={{ flex: 1 }}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={{ flex: 1 }}>
         <ScrollView
           style={{ flex: 1 }}
           contentContainerStyle={{ paddingBottom: 60 }}
@@ -408,7 +422,7 @@ export default function PengaduanPage() {
             </TouchableOpacity>
           </View>
         </ScrollView>
-      </View>
+      </KeyboardAvoidingView>
 
       {/* Custom Native Camera Modal */}
       <Modal visible={isCameraModalVisible} animationType="slide">

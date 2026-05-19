@@ -99,3 +99,13 @@ export interface PaginatedResponse<T> {
   perPage: number;
   totalPages: number;
 }
+
+export interface Notification {
+  id: string;
+  userId: string;
+  title: string;
+  body: string;
+  data: Record<string, any>;
+  isRead: boolean;
+  createdAt: string;
+}

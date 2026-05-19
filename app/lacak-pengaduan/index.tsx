@@ -18,6 +18,8 @@ import { BrowserMultiFormatReader } from '@zxing/library';
 
 import { searchComplaintByCode } from '@/services/complaints';
 import { Complaint, ComplaintStatus } from '@/types';
+import { CitizenDetailModal } from '@/components/shared/CitizenDetailModal';
+import { StatusBadge } from '@/components/admin/StatusBadge';
 
 const STATUS_STEPS: { id: number; status: ComplaintStatus; label: string; desc: string }[] = [
   {
@@ -54,6 +56,7 @@ export default function LacakPengaduanPage() {
   const [isScannerVisible, setIsScannerVisible] = useState(false);
   const [permission, requestPermission] = useCameraPermissions();
   const [hasScanned, setHasScanned] = useState(false);
+  const [isDetailVisible, setIsDetailVisible] = useState(false);
 
   const handleSearch = async () => {
     if (!complaintCode.trim()) {
@@ -84,7 +87,7 @@ export default function LacakPengaduanPage() {
     // Reject blob URLs and invalid data
     if (data.startsWith('blob:') || data.startsWith('http') || !data) {
       setIsScannerVisible(false);
-      Alert.alert('Error', 'QR Code tidak valid. Silakan masukkan kode manually.');
+      Alert.alert('Error', 'QR Code tidak valid. Silakan masukkan kode secara manual.');
       setHasScanned(false);
       return;
     }
@@ -138,51 +141,100 @@ export default function LacakPengaduanPage() {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: 'images',
       allowsEditing: true,
-      quality: 1,
+      quality: 0.8,
     });
 
     if (!result.canceled && result.assets[0]) {
       setIsScannerVisible(false);
+      setIsSearching(true);
 
       try {
-        const reader = new BrowserMultiFormatReader();
         const imageUri = result.assets[0].uri;
 
-        // Load image and decode QR
-        const img = new window.Image();
-        img.crossOrigin = 'anonymous';
-        img.onload = async () => {
-          try {
-            const result2 = await reader.decodeFromImageElement(img);
-            const scannedCode = result2.getText();
+        if (Platform.OS === 'web') {
+          // On Web, use the browser-side ZXing decoder
+          const reader = new BrowserMultiFormatReader();
+          const img = new window.Image();
+          img.crossOrigin = 'anonymous';
+          img.onload = async () => {
+            try {
+              const result2 = await reader.decodeFromImageElement(img);
+              const scannedCode = result2.getText();
+              
+              if (!scannedCode || scannedCode.length < 5 || scannedCode.startsWith('blob:') || scannedCode.startsWith('http')) {
+                Alert.alert('Error', 'QR Code tidak valid.');
+                setIsSearching(false);
+                return;
+              }
 
-            // Validate - reject blob URLs
-            if (!scannedCode || scannedCode.length < 3) {
-              Alert.alert('Error', 'QR Code tidak valid atau kosong.');
+              setComplaintCode(scannedCode.toUpperCase());
+              const complaintResult = await searchComplaintByCode(scannedCode.toUpperCase());
+              if (complaintResult) {
+                setSearchResult(complaintResult);
+              } else {
+                Alert.alert('Tidak Ditemukan', 'Kode dari QR tidak terdaftar.');
+              }
+            } catch {
+              Alert.alert('Error', 'Tidak dapat membaca QR Code dari gambar.');
+            } finally {
+              setIsSearching(false);
+            }
+          };
+          img.onerror = () => {
+            Alert.alert('Error', 'Gagal memuat gambar.');
+            setIsSearching(false);
+          };
+          img.src = imageUri;
+        } else {
+          // On Mobile, upload to a secure, stable QR decoding API
+          const formData = new FormData();
+          formData.append('file', {
+            uri: imageUri,
+            name: 'qrcode.jpg',
+            type: 'image/jpeg',
+          } as any);
+
+          const response = await fetch('https://api.qrserver.com/v1/read-qr-code/', {
+            method: 'POST',
+            body: formData,
+            headers: {
+              'Accept': 'application/json',
+            },
+          });
+
+          const apiResult = await response.json();
+          setIsSearching(false);
+
+          const symbol = apiResult[0]?.symbol[0];
+          const scannedCode = symbol?.data;
+
+          if (scannedCode && !symbol.error) {
+            const code = scannedCode.trim().toUpperCase();
+            if (code.startsWith('BLOB:') || code.startsWith('HTTP') || code.length < 5) {
+              Alert.alert('Error', 'QR Code tidak mengandung kode yang valid.');
               return;
             }
 
-            if (scannedCode.startsWith('blob:') || scannedCode.startsWith('http')) {
-              Alert.alert('Error', 'QR Code tidak valid.');
-              return;
+            setComplaintCode(code);
+            setIsSearching(true);
+            const complaintResult = await searchComplaintByCode(code);
+            if (complaintResult) {
+              setSearchResult(complaintResult);
+            } else {
+              Alert.alert('Tidak Ditemukan', 'Kode dari QR tidak terdaftar.');
             }
-
-            setComplaintCode(scannedCode.toUpperCase());
-            Alert.alert('Sukses', `Kode "${scannedCode}" terdeteksi. Tekan Lacak Sekarang.`);
-          } catch {
+            setIsSearching(false);
+          } else {
             Alert.alert(
-              'Error',
-              'Tidak dapat membaca QR Code dari gambar. Pastikan gambar mengandung QR Code.'
+              'Gagal Membaca',
+              'Gambar tidak mengandung QR Code yang valid. Pastikan QR Code terlihat jelas.'
             );
           }
-        };
-        img.onerror = () => {
-          Alert.alert('Error', 'Gagal memuat gambar.');
-        };
-        img.src = imageUri;
+        }
       } catch (error) {
+        setIsSearching(false);
         console.error('QR decode error:', error);
-        Alert.alert('Error', 'Tidak dapat membaca QR Code.');
+        Alert.alert('Error', 'Terjadi kesalahan saat memproses gambar.');
       }
     }
   };
@@ -243,11 +295,11 @@ export default function LacakPengaduanPage() {
                 autoCapitalize="characters"
               />
             </View>
-            {/* <TouchableOpacity
+            <TouchableOpacity
               onPress={openScanner}
               className="h-14 w-14 items-center justify-center rounded-2xl bg-green-50">
               <QrCode size={24} color="#16A34A" />
-            </TouchableOpacity> */}
+            </TouchableOpacity>
           </View>
           <TouchableOpacity
             onPress={handleSearch}
@@ -265,11 +317,7 @@ export default function LacakPengaduanPage() {
             <View className="mb-6 rounded-3xl border border-gray-100 bg-gray-50 p-6">
               <View className="mb-4 flex-row items-center justify-between">
                 <Text className="font-pbold text-green-700">{searchResult.code}</Text>
-                <View className="rounded-full bg-green-100 px-3 py-1">
-                  <Text className="font-psemibold text-[10px] uppercase text-green-700">
-                    {searchResult.status}
-                  </Text>
-                </View>
+                <StatusBadge status={searchResult.status} />
               </View>
               <Text className="font-pbold mb-4 text-xl text-gray-900">{searchResult.title}</Text>
 
@@ -291,6 +339,13 @@ export default function LacakPengaduanPage() {
                   </Text>
                 </View>
               </View>
+
+              <TouchableOpacity
+                onPress={() => setIsDetailVisible(true)}
+                activeOpacity={0.7}
+                className="mt-5 h-12 flex-row items-center justify-center gap-2 rounded-2xl bg-green-50 border border-green-100">
+                <Text className="font-psemibold text-sm text-green-700">Lihat Detail Pengaduan</Text>
+              </TouchableOpacity>
             </View>
 
             {/* Timeline */}
@@ -310,11 +365,11 @@ export default function LacakPengaduanPage() {
                   textColor = 'text-gray-900';
                 } else if (isCurrent) {
                   if (step.status === 'Pending') {
+                    circleColor = 'bg-amber-500';
+                    textColor = 'text-amber-600';
+                  } else if (step.status === 'Proses') {
                     circleColor = 'bg-blue-500';
                     textColor = 'text-blue-600';
-                  } else if (step.status === 'Proses') {
-                    circleColor = 'bg-yellow-500';
-                    textColor = 'text-yellow-600';
                   } else if (step.status === 'Selesai') {
                     circleColor = 'bg-green-600';
                     textColor = 'text-green-600';
@@ -443,6 +498,12 @@ export default function LacakPengaduanPage() {
           </View>
         </SafeAreaView>
       </Modal>
+
+      <CitizenDetailModal
+        visible={isDetailVisible}
+        onClose={() => setIsDetailVisible(false)}
+        complaint={searchResult}
+      />
     </SafeAreaView>
   );
 }

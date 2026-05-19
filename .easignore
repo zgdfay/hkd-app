@@ -1,0 +1,36 @@
+# Fallback to .gitignore rules
+# But explicitly ignore local caches, heavy dependencies, and credentials to optimize EAS upload.
+
+# Dependencies & IDE
+node_modules/
+.git/
+.vscode/
+.idea/
+
+# Expo / Metro Cache
+.expo/
+dist/
+web-build/
+
+# Local Environment Secrets
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env*.local
+
+# Keystores & Certificates (should be handled via EAS Secrets)
+*.jks
+*.keystore
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.pem
+
+# Native build artifacts
+android/build/
+android/app/build/
+ios/build/
+ios/Pods/

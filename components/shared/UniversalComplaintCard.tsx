@@ -132,7 +132,7 @@ export const UniversalComplaintCard = ({
             disabled={!isAdminThirdEnabled}>
             <CheckCircle2 size={14} color={!isAdminThirdEnabled ? '#9CA3AF' : '#16A34A'} />
             <Text className={`font-pmedium text-xs ${!isAdminThirdEnabled ? 'text-gray-400' : 'text-green-600'}`}>
-              {canAdminSelesai ? 'Selesai' : 'Update'}
+              {item.status === 'Selesai' || canAdminSelesai ? 'Selesai' : 'Update'}
             </Text>
           </TouchableOpacity>
         ) : (

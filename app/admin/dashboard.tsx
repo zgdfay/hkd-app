@@ -28,6 +28,8 @@ import { DetailModal } from '@/components/admin/DetailModal';
 import { TabNavigation } from '@/components/admin/TabNavigation';
 import { getAllComplaints, updateComplaintStatus, forwardComplaint, getComplaintStats } from '@/services/complaints';
 import { ComplaintListItem } from '@/types';
+import { supabase } from '@/utils/supabase';
+import { signOut, updatePassword } from '@/services/auth';
 
 const ITEMS_PER_PAGE = 5;
 
@@ -96,6 +98,27 @@ export default function AdminDashboard() {
     }
   }, [activeTab, fetchComplaints, fetchStats]);
 
+  // Realtime subscription - auto refresh when complaints change
+  React.useEffect(() => {
+    const channel = supabase
+      .channel(`admin-complaints-realtime-${Math.random().toString(36).substring(7)}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'complaints' },
+        () => {
+          if (activeTab === 'pengaduan') {
+            fetchComplaints();
+            fetchStats();
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [activeTab, fetchComplaints, fetchStats]);
+
   const filteredData = useMemo(() => {
     let data = [...complaints];
     if (filterStatus !== 'Semua') data = data.filter((item) => item.status === filterStatus);
@@ -118,7 +141,6 @@ export default function AdminDashboard() {
 
   const handleLogout = () => {
     const logoutAction = async () => {
-      const { signOut } = await import('@/services/auth');
       await signOut();
       router.replace('/login');
     };
@@ -177,7 +199,6 @@ export default function AdminDashboard() {
     }
 
     try {
-      const { updatePassword } = await import('@/services/auth');
       await updatePassword(newPassword);
       Alert.alert('Sukses', 'Kata sandi berhasil diperbarui.');
       setNewPassword('');

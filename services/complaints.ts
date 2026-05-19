@@ -1,5 +1,6 @@
 import { supabase } from '@/utils/supabase';
 import { Complaint, ComplaintListItem, ComplaintStatus, ComplaintCategory } from '@/types';
+import { notifyAdmins, notifyLurah, notifyWargaByComplaintId } from '@/services/notifications';
 
 export interface CreateComplaintPayload {
   title: string;
@@ -9,6 +10,7 @@ export interface CreateComplaintPayload {
   reporterName: string;
   reporterPhone: string;
   images?: string[];
+  reporterPushToken?: string;
 }
 
 export async function searchComplaintByCode(code: string): Promise<Complaint | null> {
@@ -47,6 +49,7 @@ export async function createComplaint(
       reporter_name: payload.reporterName,
       reporter_phone: payload.reporterPhone,
       reporter_id: reporterId || null,
+      reporter_push_token: payload.reporterPushToken || null,
       status: 'Pending',
       images: payload.images || [],
     })
@@ -54,6 +57,18 @@ export async function createComplaint(
     .single();
 
   if (error) throw new Error(error.message);
+
+  // Notify ADMINS only — Lurah gets notified when admin forwards
+  try {
+    await notifyAdmins(
+      'Pengaduan Baru',
+      `Laporan baru telah diterima dari ${payload.reporterName}: "${payload.title}"`,
+      { complaintId: data.id, type: 'new_complaint' }
+    );
+  } catch (notifyError) {
+    console.error('Failed to send notifications:', notifyError);
+  }
+
   return mapToComplaint(data);
 }
 
@@ -69,7 +84,7 @@ export async function getAllComplaints(options?: {
     .from('complaints')
     .select('*', { count: 'exact' });
 
-  if (status && status !== 'Semua') {
+  if (status && (status as string) !== 'Semua') {
     query = query.eq('status', status);
   }
 
@@ -128,12 +143,57 @@ export async function updateComplaintStatus(
   id: string,
   status: ComplaintStatus
 ): Promise<void> {
+  console.log(`[updateComplaintStatus] Updating complaint ${id} to status: ${status}`);
+
   const { error } = await supabase
     .from('complaints')
     .update({ status })
     .eq('id', id);
 
   if (error) throw new Error(error.message);
+  console.log(`[updateComplaintStatus] DB update successful for ${id}`);
+
+  // Notify warga when complaint status is updated
+  try {
+    const { data: complaint, error: fetchErr } = await supabase
+      .from('complaints')
+      .select('title, reporter_push_token')
+      .eq('id', id)
+      .single();
+
+    console.log(`[updateComplaintStatus] Complaint data:`, {
+      title: complaint?.title,
+      hasToken: !!complaint?.reporter_push_token,
+      tokenPreview: complaint?.reporter_push_token?.substring(0, 30) || 'NULL',
+    });
+
+    if (fetchErr) {
+      console.error('[updateComplaintStatus] Failed to fetch complaint:', fetchErr);
+      return;
+    }
+
+    if (complaint) {
+      if (status === 'Proses') {
+        console.log('[updateComplaintStatus] Triggering Proses notification to warga...');
+        await notifyWargaByComplaintId(
+          id,
+          'Pengaduan Diproses',
+          `Laporan pengaduan "${complaint.title}" sedang ditindak lanjuti oleh petugas.`
+        );
+        console.log('[updateComplaintStatus] Proses notification sent!');
+      } else if (status === 'Selesai') {
+        console.log('[updateComplaintStatus] Triggering Selesai notification to warga...');
+        await notifyWargaByComplaintId(
+          id,
+          'Pengaduan Selesai',
+          `Laporan pengaduan "${complaint.title}" telah selesai ditangani dengan baik. Terima kasih atas partisipasi Anda.`
+        );
+        console.log('[updateComplaintStatus] Selesai notification sent!');
+      }
+    }
+  } catch (e) {
+    console.error('[updateComplaintStatus] Failed to notify warga:', e);
+  }
 }
 
 export async function forwardComplaint(id: string): Promise<void> {
@@ -144,6 +204,25 @@ export async function forwardComplaint(id: string): Promise<void> {
     .eq('id', id);
 
   if (error) throw new Error(error.message);
+
+  // Notify Lurah about new task
+  try {
+    const { data: complaint } = await supabase
+      .from('complaints')
+      .select('title, reporter_name')
+      .eq('id', id)
+      .single();
+
+    if (complaint) {
+      await notifyLurah(
+        'Tugas Baru',
+        `Tugas baru "${complaint.title}" dari ${complaint.reporter_name} telah diteruskan untuk ditindaklanjuti.`,
+        { complaintId: id, type: 'new_task' }
+      );
+    }
+  } catch (e) {
+    console.error('Failed to notify lurah on forward:', e);
+  }
 }
 
 export async function setLurahStatusProcessing(id: string): Promise<void> {
@@ -154,6 +233,25 @@ export async function setLurahStatusProcessing(id: string): Promise<void> {
     .eq('id', id);
 
   if (error) throw new Error(error.message);
+
+  // Notify Admin that Lurah is processing
+  try {
+    const { data: complaint } = await supabase
+      .from('complaints')
+      .select('title')
+      .eq('id', id)
+      .single();
+
+    if (complaint) {
+      await notifyAdmins(
+        'Laporan Sedang Diproses',
+        `Lurah telah memulai pemrosesan untuk pengaduan "${complaint.title}".`,
+        { complaintId: id, type: 'lurah_processing' }
+      );
+    }
+  } catch (e) {
+    console.error('Failed to notify admins on lurah processing:', e);
+  }
 }
 
 export async function setLurahStatusDone(id: string): Promise<void> {
@@ -164,6 +262,25 @@ export async function setLurahStatusDone(id: string): Promise<void> {
     .eq('id', id);
 
   if (error) throw new Error(error.message);
+
+  // Notify Admin that Lurah has finished
+  try {
+    const { data: complaint } = await supabase
+      .from('complaints')
+      .select('title')
+      .eq('id', id)
+      .single();
+
+    if (complaint) {
+      await notifyAdmins(
+        'Tugas Selesai Dikerjakan',
+        `Lurah telah menyelesaikan pengaduan "${complaint.title}". Mohon lakukan konfirmasi penyelesaian akhir.`,
+        { complaintId: id, type: 'lurah_done' }
+      );
+    }
+  } catch (e) {
+    console.error('Failed to notify admins on lurah done:', e);
+  }
 }
 
 export async function getComplaintStats(): Promise<{

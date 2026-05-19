@@ -26,7 +26,7 @@ export const FilterSection = ({
 }: FilterSectionProps) => (
   <>
     {/* Search Bar */}
-    <View className="mb-6 px-6">
+    <View className="mt-4 mb-6 px-6">
       <View className="flex-row items-center rounded-2xl border border-gray-100 bg-gray-50 px-4 py-1">
         <Search size={18} color="#9CA3AF" />
         <TextInput

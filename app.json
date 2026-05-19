@@ -4,7 +4,7 @@
     "slug": "helo-kidul-dalem-app",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/logo/logo-kidul-dalem-rounded.png",
+    "icon": "./assets/logo/logo-hkd-app.png",
     "scheme": "helo-kidul-dalem-app",
     "userInterfaceStyle": "automatic",
     "splash": {
@@ -16,23 +16,32 @@
       "**/*"
     ],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.faayy.helokiduldalemapp"
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/logo/logo-kidul-dalem-rounded.png",
+        "foregroundImage": "./assets/logo/logo-hkd-app.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.faayy.helokiduldalemapp"
+      "package": "com.faayy.helokiduldalemapp",
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "bundler": "metro",
-      "output": "static",
+      "output": "server",
       "favicon": "./assets/logo/logo-kidul-dalem-app.png"
     },
     "plugins": [
       "expo-router",
-      "expo-font"
+      "expo-font",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/logo/logo-kidul-dalem-app.png",
+          "color": "#16A34A"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
