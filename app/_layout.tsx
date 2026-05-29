@@ -1,5 +1,6 @@
 import LoadingScreen from '@/components/shared/LoadingScreen';
 import '@/global.css';
+import Toast from 'react-native-toast-message';
 
 import { NAV_THEME } from '@/lib/theme';
 import { ThemeProvider } from '@react-navigation/native';
@@ -58,7 +59,8 @@ export default function RootLayout() {
 
     // Listen for incoming notifications while app is in foreground
     const receivedSub = addNotificationReceivedListener((notification) => {
-      console.log('Notification received:', notification.request.content.title);
+      console.log('🔔 [FOREGROUND PUSH RECEIVED]:', notification.request.content.title, notification.request.content.body);
+      console.log('📦 Data Payload:', JSON.stringify(notification.request.content.data));
       // Optional: you can choose not to clear badge if you want to keep it while in foreground,
       // but usually when the app is active/foregrounded, we want the badge to stay 0.
       clearBadgeCount();
@@ -67,6 +69,9 @@ export default function RootLayout() {
     // Handle notification tap (app opened from notification)
     const responseSub = addNotificationResponseReceivedListener((response) => {
       const data = response.notification.request.content.data;
+      console.log('👆 [PUSH TAPPED]:', response.notification.request.content.title);
+      console.log('📦 Data Tapped:', JSON.stringify(data));
+      
       clearBadgeCount(); // Clear badge when tapping notification
       if (data?.type === 'new_complaint' || data?.type === 'lurah_processing' || data?.type === 'lurah_done') {
         router.push('/admin/dashboard' as any);
@@ -101,6 +106,7 @@ export default function RootLayout() {
       <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
       <Stack />
       <PortalHost />
+      <Toast />
     </ThemeProvider>
   );
 }

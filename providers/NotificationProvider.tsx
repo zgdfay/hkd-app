@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router';
 import { supabase } from '@/utils/supabase';
 import { getCurrentUser } from '@/services/auth';
 import Toast from 'react-native-toast-message';
+import { getLocalPushToken } from '@/services/push-notifications';
 
 // Configure how notifications are handled when app is in foreground
 Notifications.setNotificationHandler({
@@ -120,7 +121,6 @@ export const NotificationProvider = ({ children }: { children: React.ReactNode }
    */
   const setupPushToken = async () => {
     try {
-      const { getLocalPushToken } = await import('@/services/push-notifications');
       const token = await getLocalPushToken();
 
       if (token) {

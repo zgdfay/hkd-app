@@ -4,7 +4,6 @@ import { LogOut, Search, User, ShieldCheck, Eye, EyeOff } from 'lucide-react-nat
 import React, { useState, useMemo, useCallback } from 'react';
 import {
   View,
-  SafeAreaView,
   ScrollView,
   TouchableOpacity,
   TextInput,
@@ -13,6 +12,7 @@ import {
   KeyboardAvoidingView,
 } from 'react-native';
 import { Text } from '@/components/ui/text';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { LurahHeader } from '@/components/lurah/LurahHeader';
 import { UniversalComplaintCard } from '@/components/shared/UniversalComplaintCard';

@@ -56,6 +56,11 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
       return null;
     }
 
+    if (Platform.OS === 'web') {
+      console.log('Push notifications are not configured for web. Skipping.');
+      return null;
+    }
+
     const projectId = Constants.expoConfig?.extra?.eas?.projectId;
     if (!projectId) {
       return null;
@@ -84,7 +89,15 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
 
     return token;
   } catch (error) {
-    console.error('Error registering for push notifications:', error);
+    const errorStr = String(error);
+    if (errorStr.includes('FIS_AUTH') || errorStr.includes('Fetching the token failed')) {
+      console.warn(
+        '⚠️ Push notifications disabled: Missing native Firebase configuration (google-services.json). ' +
+          'To fix this, rebuild your dev client by running: npx expo run:android'
+      );
+    } else {
+      console.error('Error registering for push notifications:', error);
+    }
     return null;
   }
 }

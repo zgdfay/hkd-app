@@ -11,7 +11,6 @@ import {
 import React, { useState, useMemo, useCallback } from 'react';
 import {
   View,
-  SafeAreaView,
   ScrollView,
   TouchableOpacity,
   TextInput,
@@ -20,6 +19,7 @@ import {
   KeyboardAvoidingView,
 } from 'react-native';
 import { Text } from '@/components/ui/text';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AdminHeader } from '@/components/admin/AdminHeader';
 import { StatsCards } from '@/components/admin/StatsCards';

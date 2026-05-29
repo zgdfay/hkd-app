@@ -180,15 +180,17 @@ async function getTokensForRole(role: 'admin' | 'lurah'): Promise<string[]> {
       .eq('role', role);
 
     if (profileError) {
-      console.error(`Failed to get profiles for role ${role}:`, profileError);
+      console.error(`[DEBUG] Failed to get profiles for role ${role}:`, profileError);
       return [];
     }
 
     if (!profiles || profiles.length === 0) {
+      console.log(`[DEBUG] 0 profiles found for role ${role} (Mungkin karena RLS / Anonymous)`);
       return [];
     }
 
     const userIds = profiles.map((p) => p.id);
+    console.log(`[DEBUG] Found ${userIds.length} profiles for role ${role}`);
 
     // 2. Get all push tokens associated with those user IDs
     const { data: pushTokens, error: tokenError } = await supabase
@@ -197,12 +199,14 @@ async function getTokensForRole(role: 'admin' | 'lurah'): Promise<string[]> {
       .in('user_id', userIds);
 
     if (tokenError) {
-      console.error(`Failed to get push tokens for ${role}:`, tokenError);
+      console.error(`[DEBUG] Failed to get push tokens for ${role}:`, tokenError);
       return [];
     }
 
     const rawTokens = (pushTokens || []).map((t: any) => t.token).filter(Boolean);
-    return Array.from(new Set(rawTokens));
+    const uniqueRawTokens = Array.from(new Set(rawTokens));
+    console.log(`[DEBUG] Total unique push tokens found for ${role}: ${uniqueRawTokens.length}`);
+    return uniqueRawTokens;
   } catch (error) {
     console.error(`Exception in getTokensForRole for ${role}:`, error);
     return [];
